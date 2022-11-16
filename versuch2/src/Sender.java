@@ -30,31 +30,60 @@ public class Sender {
      * @throws IOException Wird geworfen falls Sockets nicht erzeugt werden können.
      */
     private void send() throws IOException {
-/*   	//Text einlesen und in Worte zerlegen
+       //Text einlesen und in Worte zerlegen
+    BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    String input = reader.readLine();
+    input += " EOT";
+    String[] words = input.split(" ");
 
-        // Socket erzeugen auf Port 9998 und Timeout auf eine Sekunde setzen
 
+
+    // Socket erzeugen auf Port 9998 und Timeout auf eine Sekunde setzen
+        DatagramSocket clientSocket = new DatagramSocket(9998);
+        clientSocket.setSoTimeout(1000);
         // Iteration über den Konsolentext
-        while (true) {
-        	// Paket an Port 9997 senden
-        	
+
+        int i = 0;
+        int seq = 0;
+      while(i != words.length) {
+            //Create Packet for every word
+            Packet packetOut = new Packet(seq,i,false,words[i].getBytes());
+            //Serialize Packet for sending
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            ObjectOutputStream o = new ObjectOutputStream(b);
+            o.writeObject(packetOut);
+            byte[] buf = b.toByteArray();
+            //create actual sendable DatagrammPacket
+            DatagramPacket toSend = new DatagramPacket(buf,buf.length,InetAddress.getLocalHost(),9997 );
+
+            //send Packet
+            clientSocket.send(toSend);
+
             try {
-                // Auf ACK warten und erst dann Schleifenzähler inkrementieren
+                byte[] bufRec = new byte[256];
+                DatagramPacket toReceive = new DatagramPacket(bufRec, bufRec.length);
+                clientSocket.receive(toReceive);
+
+                //deserialization
+                ObjectInputStream is = new ObjectInputStream(new ByteArrayInputStream(toReceive.getData()));
+                Packet packetIn = (Packet) is.readObject();
+                //check if Acknum is correctly incremented by receiver
+                if(packetIn.isAckFlag() && (packetIn.getAckNum()== seq + packetIn.getPayload().length)) {
+                    i ++;
+                    seq += packetIn.getPayload().length;
+                }
 
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             } catch (SocketTimeoutException e) {
-            	System.out.println("Receive timed out, retrying...");
+                System.out.println("Receive timed out, retrying...");
             }
         }
-        
-        // Wenn alle Packete versendet und von der Gegenseite bestätigt sind, Programm beenden
         clientSocket.close();
-        
+
         if(System.getProperty("os.name").equals("Linux")) {
             clientSocket.disconnect();
         }
-*/
         System.exit(0);
     }
 }
